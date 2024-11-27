@@ -1,20 +1,33 @@
+// Initialize Socket.IO with secure WebSocket
 const socket = io({
     transports: ['websocket'],
     secure: true
 });
+
 const messagesDiv = document.getElementById('messages');
 const messageInput = document.getElementById('message');
 const userCountElement = document.getElementById('user-count');
 
-// WebRTC configuration
+// WebRTC configuration with multiple STUN servers
 const configuration = {
     iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' }
-    ]
+        { 
+            urls: [
+                'stun:stun.l.google.com:19302',
+                'stun:stun1.l.google.com:19302',
+                'stun:stun2.l.google.com:19302',
+                'stun:stun3.l.google.com:19302',
+                'stun:stun4.l.google.com:19302'
+            ]
+        }
+    ],
+    iceCandidatePoolSize: 10
 };
+
 let peerConnection;
 let localStream;
 let isInitiator = false;
+let isConnected = false;
 
 // Video elements
 const localVideo = document.getElementById('localVideo');
@@ -27,20 +40,26 @@ const toggleVideoButton = document.getElementById('toggleVideo');
 toggleAudioButton.disabled = true;
 toggleVideoButton.disabled = true;
 
-// Update user count
+// Update user count and handle connection status
 socket.on('user_update', function(data) {
     if (userCountElement) {
         userCountElement.textContent = `${data.count}/2`;
+        
+        // If second user joins and video is already started
+        if (data.count === 2 && localStream && !isConnected) {
+            isInitiator = true;
+            createPeerConnection();
+            createOffer();
+        }
     }
 });
 
 // Video call functions
 async function startVideo() {
     try {
-        // Request permissions explicitly
         startVideoButton.textContent = 'Requesting permissions...';
+        startVideoButton.disabled = true;
         
-        // Check if browser supports getUserMedia
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             throw new Error('Your browser does not support video calls');
         }
@@ -58,7 +77,6 @@ async function startVideo() {
         toggleAudioButton.disabled = false;
         toggleVideoButton.disabled = false;
         startVideoButton.textContent = 'Video Started';
-        startVideoButton.disabled = true;
 
         // Display local video
         localVideo.srcObject = localStream;
@@ -66,14 +84,14 @@ async function startVideo() {
 
         // Create peer connection if two users are present
         if (userCountElement && userCountElement.textContent.startsWith('2')) {
+            isInitiator = true;
             createPeerConnection();
-            if (isInitiator) {
-                createOffer();
-            }
+            createOffer();
         }
     } catch (error) {
         console.error('Error accessing media devices:', error);
         startVideoButton.textContent = 'Start Video';
+        startVideoButton.disabled = false;
         alert('Error accessing camera/microphone: ' + error.message);
     }
 }
@@ -82,7 +100,7 @@ function createPeerConnection() {
     try {
         peerConnection = new RTCPeerConnection(configuration);
         
-        // Add local stream
+        // Add local stream tracks to peer connection
         localStream.getTracks().forEach(track => {
             peerConnection.addTrack(track, localStream);
         });
@@ -93,18 +111,25 @@ function createPeerConnection() {
                 socket.emit('ice_candidate', event.candidate);
             }
         };
+
+        // Log ICE connection state changes
+        peerConnection.oniceconnectionstatechange = () => {
+            console.log('ICE Connection State:', peerConnection.iceConnectionState);
+        };
         
         // Handle receiving remote stream
         peerConnection.ontrack = event => {
             if (remoteVideo.srcObject !== event.streams[0]) {
-                remoteVideo.srcObject = event.streams[0];
                 console.log('Received remote stream');
+                remoteVideo.srcObject = event.streams[0];
+                isConnected = true;
             }
         };
 
         console.log('PeerConnection created');
     } catch (error) {
         console.error('Error creating peer connection:', error);
+        alert('Error creating video connection. Please try refreshing the page.');
     }
 }
 
@@ -112,13 +137,16 @@ async function createOffer() {
     try {
         const offer = await peerConnection.createOffer({
             offerToReceiveAudio: true,
-            offerToReceiveVideo: true
+            offerToReceiveVideo: true,
+            iceRestart: true
         });
+        
         await peerConnection.setLocalDescription(offer);
         socket.emit('offer', offer);
         console.log('Offer created and sent');
     } catch (error) {
         console.error('Error creating offer:', error);
+        alert('Error establishing video connection. Please try refreshing the page.');
     }
 }
 
@@ -141,6 +169,7 @@ socket.on('offer', async function(offer) {
         console.log('Answer created and sent');
     } catch (error) {
         console.error('Error handling offer:', error);
+        alert('Error connecting to peer. Please try refreshing the page.');
     }
 });
 
@@ -182,6 +211,16 @@ toggleVideoButton.addEventListener('click', () => {
         videoTrack.enabled = !videoTrack.enabled;
         toggleVideoButton.textContent = videoTrack.enabled ? 'Hide Video' : 'Show Video';
         toggleVideoButton.classList.toggle('active');
+    }
+});
+
+// Handle user disconnection
+window.addEventListener('beforeunload', () => {
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+    }
+    if (peerConnection) {
+        peerConnection.close();
     }
 });
 

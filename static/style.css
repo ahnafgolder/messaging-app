@@ -13,8 +13,8 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
-    padding: 20px;
+    min-height: 100vh;
+    padding: 10px;
 }
 
 .chat-container, .login-container {
@@ -54,23 +54,26 @@ body {
 .chat-container {
     display: flex;
     flex-direction: column;
-    height: 90vh;
+    height: 100vh;
+    max-height: 100vh;
 }
 
 .chat-header {
-    padding: 20px;
+    padding: 15px;
     background: #1a73e8;
     color: white;
     border-radius: 10px 10px 0 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-shrink: 0;
 }
 
 .user-info {
     display: flex;
     align-items: center;
     gap: 15px;
+    font-size: 0.9rem;
 }
 
 .logout-button {
@@ -79,35 +82,38 @@ body {
     color: #1a73e8;
     text-decoration: none;
     border-radius: 5px;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
 }
 
 .chat-header h1 {
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     font-weight: 600;
 }
 
 .main-content {
     display: flex;
+    flex-direction: column;
     flex: 1;
-    gap: 20px;
-    padding: 20px;
-    height: calc(100% - 70px);
+    min-height: 0;
+    padding: 10px;
+    gap: 10px;
+    overflow: hidden;
 }
 
 .video-container {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 20px;
-    min-width: 0;
+    gap: 10px;
+    min-height: 0;
 }
 
 .video-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
+    grid-template-columns: 1fr;
+    gap: 10px;
     flex: 1;
+    min-height: 0;
 }
 
 .video-wrapper {
@@ -136,17 +142,19 @@ body {
     color: white;
     padding: 5px 10px;
     border-radius: 5px;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
 }
 
 .video-controls {
     display: flex;
     gap: 10px;
     justify-content: center;
+    flex-wrap: wrap;
+    padding: 5px;
 }
 
 .control-button {
-    padding: 10px 20px;
+    padding: 8px 15px;
     background: #1a73e8;
     color: white;
     border: none;
@@ -164,12 +172,16 @@ body {
     background: #dc3545;
 }
 
+.control-button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
 .chat-section {
-    flex: 0.4;
+    flex: 1;
     display: flex;
     flex-direction: column;
-    min-width: 300px;
-    max-width: 400px;
+    min-height: 0;
     background: #f8f9fa;
     border-radius: 10px;
     overflow: hidden;
@@ -177,23 +189,25 @@ body {
 
 .messages {
     flex: 1;
-    padding: 20px;
+    padding: 10px;
     overflow-y: auto;
     background: white;
+    min-height: 0;
 }
 
 .message {
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     display: flex;
     flex-direction: column;
 }
 
 .message-content {
-    max-width: 70%;
-    padding: 10px 15px;
+    max-width: 85%;
+    padding: 8px 12px;
     border-radius: 15px;
     margin: 2px 0;
     word-wrap: break-word;
+    font-size: 0.95rem;
 }
 
 .message.received .message-content {
@@ -208,7 +222,7 @@ body {
 }
 
 .message-info {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: #666;
     margin-bottom: 2px;
 }
@@ -218,14 +232,14 @@ body {
 }
 
 .input-area {
-    padding: 20px;
+    padding: 10px;
     background: #f8f9fa;
     border-top: 1px solid #dee2e6;
 }
 
 .username-input, .message-input, .login-button {
     width: 100%;
-    padding: 12px;
+    padding: 10px;
     border: 1px solid #dee2e6;
     border-radius: 5px;
     font-size: 1rem;
@@ -233,7 +247,7 @@ body {
 
 .message-input-container {
     display: flex;
-    gap: 10px;
+    gap: 8px;
 }
 
 .message-input {
@@ -241,14 +255,15 @@ body {
 }
 
 .send-button, .login-button {
-    padding: 12px 24px;
+    padding: 10px 20px;
     background: #1a73e8;
     color: white;
     border: none;
     border-radius: 5px;
     cursor: pointer;
-    font-size: 1rem;
+    font-size: 0.9rem;
     transition: background 0.2s;
+    white-space: nowrap;
 }
 
 .send-button:hover, .login-button:hover {
@@ -258,4 +273,60 @@ body {
 input:focus {
     outline: none;
     border-color: #1a73e8;
+}
+
+/* Media Queries for Responsive Design */
+@media (min-width: 768px) {
+    .main-content {
+        flex-direction: row;
+    }
+
+    .video-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .chat-section {
+        width: 350px;
+    }
+}
+
+@media (max-width: 767px) {
+    .chat-container {
+        height: 100vh;
+        border-radius: 0;
+    }
+
+    .chat-header {
+        padding: 10px;
+    }
+
+    .chat-header h1 {
+        font-size: 1.1rem;
+    }
+
+    .user-info {
+        font-size: 0.8rem;
+    }
+
+    .video-container {
+        max-height: 50vh;
+    }
+
+    .video-controls {
+        padding: 5px;
+    }
+
+    .control-button {
+        padding: 6px 12px;
+        font-size: 0.8rem;
+    }
+
+    .messages {
+        max-height: 40vh;
+    }
+
+    .message-content {
+        font-size: 0.9rem;
+        padding: 6px 10px;
+    }
 }
