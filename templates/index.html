@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Private Chat</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="chat-container">
+            <div class="chat-header">
+                <h1>Private Chat</h1>
+                <div class="user-info">
+                    <span>Logged in as: {{ username }}</span>
+                    <a href="{{ url_for('logout') }}" class="logout-button">Logout</a>
+                </div>
+            </div>
+            <div class="main-content">
+                <div class="video-container">
+                    <div class="video-grid">
+                        <div class="video-wrapper">
+                            <video id="localVideo" autoplay playsinline muted></video>
+                            <div class="video-label">You</div>
+                        </div>
+                        <div class="video-wrapper">
+                            <video id="remoteVideo" autoplay playsinline></video>
+                            <div class="video-label">Remote User</div>
+                        </div>
+                    </div>
+                    <div class="video-controls">
+                        <button id="startVideo" class="control-button">Start Video</button>
+                        <button id="toggleAudio" class="control-button">Mute</button>
+                        <button id="toggleVideo" class="control-button">Hide Video</button>
+                    </div>
+                </div>
+                <div class="chat-section">
+                    <div class="messages" id="messages"></div>
+                    <div class="input-area">
+                        <div class="message-input-container">
+                            <input type="text" id="message" placeholder="Type your message..." class="message-input">
+                            <button onclick="sendMessage()" class="send-button">Send</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

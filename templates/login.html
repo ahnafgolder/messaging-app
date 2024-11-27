@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Private Chat</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="login-container">
+            <h1>Private Chat</h1>
+            <div class="login-status">
+                {% if error %}
+                    <p class="error">{{ error }}</p>
+                {% endif %}
+                <p>Connected Users: <span id="user-count">{{ users|length }}/2</span></p>
+            </div>
+            <form action="{{ url_for('login') }}" method="post" class="login-form">
+                <input type="text" name="username" placeholder="Enter your username" required class="username-input">
+                <button type="submit" class="login-button">Join Chat</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
