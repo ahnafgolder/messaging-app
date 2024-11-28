@@ -79,5 +79,26 @@ def handle_call_ended():
     if room:
         emit('call_ended', room=room, skip_sid=request.sid)
 
+@socketio.on('call_request')
+def handle_call_request():
+    """Handle incoming call request"""
+    room = session.get('room')
+    if room:
+        emit('call_request', room=room, skip_sid=request.sid)
+
+@socketio.on('call_rejected')
+def handle_call_rejected(data):
+    """Handle call rejection"""
+    room = session.get('room')
+    if room:
+        emit('call_rejected', data, room=room, skip_sid=request.sid)
+
+@socketio.on('call_answer')
+def handle_call_answer(data):
+    """Handle call answer"""
+    room = session.get('room')
+    if room:
+        emit('call_answer', data, room=room, skip_sid=request.sid)
+
 if __name__ == '__main__':
     socketio.run(app, debug=True)

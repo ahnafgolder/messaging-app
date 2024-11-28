@@ -1,205 +1,184 @@
-// Initialize Socket.IO with secure WebSocket
-const socket = io({
-    transports: ['websocket'],
-    secure: true
-});
+let localStream = null;
+let peerConnection = null;
+let isCallInitiator = false;
+let callInProgress = false;
 
+const socket = io();
 const messagesDiv = document.getElementById('messages');
-const messageInput = document.getElementById('message');
-const userCountElement = document.getElementById('user-count');
-
-// WebRTC configuration with multiple STUN servers
-const configuration = {
-    iceServers: [
-        { 
-            urls: [
-                'stun:stun.l.google.com:19302',
-                'stun:stun1.l.google.com:19302',
-                'stun:stun2.l.google.com:19302',
-                'stun:stun3.l.google.com:19302',
-                'stun:stun4.l.google.com:19302'
-            ]
-        }
-    ],
-    iceCandidatePoolSize: 10
-};
-
-let peerConnection;
-let localStream;
-let isInitiator = false;
-let isConnected = false;
-
-// Video elements
+const messageInput = document.getElementById('messageInput');
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
 const startVideoButton = document.getElementById('startVideo');
 const toggleAudioButton = document.getElementById('toggleAudio');
 const toggleVideoButton = document.getElementById('toggleVideo');
 const endCallButton = document.getElementById('endCall');
+const callModal = document.getElementById('callModal');
+const acceptCallButton = document.getElementById('acceptCall');
+const rejectCallButton = document.getElementById('rejectCall');
 
-// Disable control buttons initially
-toggleAudioButton.disabled = true;
-toggleVideoButton.disabled = true;
+// Initialize WebRTC with multiple STUN servers
+const configuration = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' }
+    ]
+};
 
-// Update user count and handle connection status
-socket.on('user_update', function(data) {
-    if (userCountElement) {
-        userCountElement.textContent = `${data.count}/2`;
-        
-        // If second user joins and video is already started
-        if (data.count === 2 && localStream && !isConnected) {
-            isInitiator = true;
-            createPeerConnection();
-            createOffer();
-        }
-    }
-});
-
-// Video call functions
-async function startVideo() {
+// Start call function
+async function startCall() {
     try {
-        startVideoButton.textContent = 'Requesting permissions...';
-        startVideoButton.disabled = true;
-        
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            throw new Error('Your browser does not support video calls');
-        }
-
-        // Request camera and microphone permissions
-        localStream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            },
-            audio: true
-        });
-
-        // Enable control buttons
-        toggleAudioButton.disabled = false;
-        toggleVideoButton.disabled = false;
-        startVideoButton.textContent = 'Video Started';
-
-        // Display local video
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         localVideo.srcObject = localStream;
-        await localVideo.play().catch(e => console.log('Play error:', e));
-
-        // Create peer connection if two users are present
-        if (userCountElement && userCountElement.textContent.startsWith('2')) {
-            isInitiator = true;
-            createPeerConnection();
-            createOffer();
-        }
+        socket.emit('call_request');
+        appendMessage('System', 'Calling...');
+        isCallInitiator = true;
     } catch (error) {
         console.error('Error accessing media devices:', error);
-        startVideoButton.textContent = 'Start Video';
-        startVideoButton.disabled = false;
-        alert('Error accessing camera/microphone: ' + error.message);
+        appendMessage('System', 'Error accessing camera/microphone');
     }
 }
 
-function createPeerConnection() {
-    try {
-        peerConnection = new RTCPeerConnection(configuration);
-        
-        // Add local stream tracks to peer connection
-        localStream.getTracks().forEach(track => {
-            peerConnection.addTrack(track, localStream);
-        });
-        
-        // Handle ICE candidates
-        peerConnection.onicecandidate = event => {
-            if (event.candidate) {
-                socket.emit('ice_candidate', event.candidate);
-            }
-        };
-
-        // Log ICE connection state changes
-        peerConnection.oniceconnectionstatechange = () => {
-            console.log('ICE Connection State:', peerConnection.iceConnectionState);
-        };
-        
-        // Handle receiving remote stream
-        peerConnection.ontrack = event => {
-            if (remoteVideo.srcObject !== event.streams[0]) {
-                console.log('Received remote stream');
-                remoteVideo.srcObject = event.streams[0];
-                isConnected = true;
-            }
-        };
-
-        console.log('PeerConnection created');
-    } catch (error) {
-        console.error('Error creating peer connection:', error);
-        alert('Error creating video connection. Please try refreshing the page.');
-    }
-}
-
-async function createOffer() {
-    try {
-        const offer = await peerConnection.createOffer({
-            offerToReceiveAudio: true,
-            offerToReceiveVideo: true,
-            iceRestart: true
-        });
-        
-        await peerConnection.setLocalDescription(offer);
-        socket.emit('offer', offer);
-        console.log('Offer created and sent');
-    } catch (error) {
-        console.error('Error creating offer:', error);
-        alert('Error establishing video connection. Please try refreshing the page.');
-    }
-}
-
-// WebRTC signaling handlers
-socket.on('offer', async function(offer) {
-    console.log('Received offer');
-    if (!localStream) {
-        isInitiator = false;
-        await startVideo();
-    }
+// Initialize WebRTC connection
+async function initializeCall() {
+    peerConnection = new RTCPeerConnection(configuration);
     
-    try {
-        if (!peerConnection) {
-            createPeerConnection();
+    // Add local stream
+    localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+    });
+
+    // Handle incoming stream
+    peerConnection.ontrack = event => {
+        remoteVideo.srcObject = event.streams[0];
+    };
+
+    // Handle ICE candidates
+    peerConnection.onicecandidate = event => {
+        if (event.candidate) {
+            socket.emit('ice_candidate', event.candidate);
         }
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+    };
+
+    // Enable control buttons
+    toggleAudioButton.disabled = false;
+    toggleVideoButton.disabled = false;
+    endCallButton.disabled = false;
+    startVideoButton.disabled = true;
+}
+
+// Accept call function
+async function acceptCall() {
+    try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        localVideo.srcObject = localStream;
+        await initializeCall();
+        
+        // Create and send answer
+        const offer = JSON.parse(sessionStorage.getItem('pendingOffer'));
+        await peerConnection.setRemoteDescription(offer);
         const answer = await peerConnection.createAnswer();
         await peerConnection.setLocalDescription(answer);
-        socket.emit('answer', answer);
-        console.log('Answer created and sent');
+        socket.emit('call_answer', { answer });
+        
+        callModal.classList.remove('show');
+        callInProgress = true;
+        appendMessage('System', 'Call connected');
     } catch (error) {
-        console.error('Error handling offer:', error);
-        alert('Error connecting to peer. Please try refreshing the page.');
+        console.error('Error accepting call:', error);
+        appendMessage('System', 'Error accepting call');
+    }
+}
+
+// Handle call events
+startVideoButton.addEventListener('click', startCall);
+
+socket.on('call_request', async () => {
+    if (callInProgress) {
+        socket.emit('call_rejected', { reason: 'User is busy' });
+        return;
+    }
+    
+    callModal.classList.add('show');
+    appendMessage('System', 'Incoming call...');
+});
+
+acceptCallButton.addEventListener('click', acceptCall);
+
+rejectCallButton.addEventListener('click', () => {
+    socket.emit('call_rejected', { reason: 'Call declined' });
+    callModal.classList.remove('show');
+    appendMessage('System', 'Call declined');
+});
+
+socket.on('call_rejected', (data) => {
+    if (isCallInitiator) {
+        appendMessage('System', `Call rejected: ${data.reason}`);
+        resetCall();
     }
 });
 
-socket.on('answer', async function(answer) {
-    console.log('Received answer');
-    try {
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-    } catch (error) {
-        console.error('Error handling answer:', error);
-    }
-});
-
-socket.on('ice_candidate', async function(candidate) {
-    try {
-        if (peerConnection) {
-            await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-            console.log('ICE candidate added');
+socket.on('call_answer', async (data) => {
+    if (isCallInitiator) {
+        try {
+            await initializeCall();
+            await peerConnection.setRemoteDescription(data.answer);
+            callInProgress = true;
+            appendMessage('System', 'Call connected');
+        } catch (error) {
+            console.error('Error completing call setup:', error);
+            appendMessage('System', 'Error connecting call');
         }
-    } catch (error) {
-        console.error('Error adding ICE candidate:', error);
     }
 });
 
-// Video control functions
-startVideoButton.addEventListener('click', startVideo);
+// Handle ICE candidates
+socket.on('ice_candidate', async (candidate) => {
+    if (peerConnection) {
+        try {
+            await peerConnection.addIceCandidate(candidate);
+        } catch (error) {
+            console.error('Error adding ICE candidate:', error);
+        }
+    }
+});
 
-toggleAudioButton.addEventListener('click', () => {
+// Reset call state
+function resetCall() {
     if (localStream) {
-        const audioTrack = localStream.getAudioTracks()[0];
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+    }
+    if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+    }
+    localVideo.srcObject = null;
+    remoteVideo.srcObject = null;
+    callInProgress = false;
+    isCallInitiator = false;
+    startVideoButton.disabled = false;
+    toggleAudioButton.disabled = true;
+    toggleVideoButton.disabled = true;
+    endCallButton.disabled = true;
+}
+
+// End call handler
+endCallButton.addEventListener('click', () => {
+    socket.emit('call_ended');
+    appendMessage('System', 'Call ended');
+    resetCall();
+});
+
+socket.on('call_ended', () => {
+    appendMessage('System', 'Call ended by other user');
+    resetCall();
+});
+
+// Audio/Video toggle handlers
+toggleAudioButton.addEventListener('click', () => {
+    const audioTrack = localStream.getAudioTracks()[0];
+    if (audioTrack) {
         audioTrack.enabled = !audioTrack.enabled;
         toggleAudioButton.textContent = audioTrack.enabled ? 'Mute' : 'Unmute';
         toggleAudioButton.classList.toggle('active');
@@ -207,113 +186,48 @@ toggleAudioButton.addEventListener('click', () => {
 });
 
 toggleVideoButton.addEventListener('click', () => {
-    if (localStream) {
-        const videoTrack = localStream.getVideoTracks()[0];
+    const videoTrack = localStream.getVideoTracks()[0];
+    if (videoTrack) {
         videoTrack.enabled = !videoTrack.enabled;
         toggleVideoButton.textContent = videoTrack.enabled ? 'Hide Video' : 'Show Video';
         toggleVideoButton.classList.toggle('active');
     }
 });
 
-// End Call functionality
-document.getElementById('endCall').addEventListener('click', async () => {
-    try {
-        // Close peer connection
-        if (peerConnection) {
-            peerConnection.close();
-            peerConnection = null;
-        }
+// Chat functionality
+function sendMessage() {
+    const message = messageInput.value.trim();
+    if (message) {
+        socket.emit('message', { message });
+        messageInput.value = '';
+    }
+}
 
-        // Stop all tracks in local stream
-        if (localStream) {
-            localStream.getTracks().forEach(track => track.stop());
-            localStream = null;
-        }
+document.querySelector('.send-button').addEventListener('click', sendMessage);
 
-        // Clear video elements
-        document.getElementById('localVideo').srcObject = null;
-        document.getElementById('remoteVideo').srcObject = null;
-
-        // Reset UI
-        document.getElementById('startVideo').textContent = 'Start Video';
-        document.getElementById('toggleAudio').textContent = 'Mute';
-        document.getElementById('toggleVideo').textContent = 'Hide Video';
-
-        // Notify other user
-        socket.emit('call_ended');
-
-        // Add status message
-        appendMessage('System', 'Call ended');
-    } catch (error) {
-        console.error('Error ending call:', error);
-        appendMessage('System', 'Error ending call');
+messageInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        sendMessage();
     }
 });
 
-// Handle call ended event from other user
-socket.on('call_ended', () => {
-    if (peerConnection) {
-        peerConnection.close();
-        peerConnection = null;
-    }
-    if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        localStream = null;
-    }
-    document.getElementById('localVideo').srcObject = null;
-    document.getElementById('remoteVideo').srcObject = null;
-    document.getElementById('startVideo').textContent = 'Start Video';
-    appendMessage('System', 'Other user ended the call');
-});
-
-// Handle user disconnection
-window.addEventListener('beforeunload', () => {
-    if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-    }
-    if (peerConnection) {
-        peerConnection.close();
-    }
-});
-
-// Chat message functions
-socket.on('receive_message', function(data) {
+socket.on('message', function(data) {
     const messageElement = document.createElement('div');
-    const username = document.querySelector('.user-info span').textContent.split(': ')[1];
-    messageElement.className = `message ${data.user === username ? 'sent' : 'received'}`;
+    messageElement.className = `message ${data.sender === username ? 'sent' : 'received'}`;
     
     const messageInfo = document.createElement('div');
     messageInfo.className = 'message-info';
-    messageInfo.textContent = `${data.user} • ${data.timestamp}`;
+    messageInfo.textContent = data.sender;
     
     const messageContent = document.createElement('div');
     messageContent.className = 'message-content';
-    messageContent.textContent = data.content;
+    messageContent.textContent = data.message;
     
     messageElement.appendChild(messageInfo);
     messageElement.appendChild(messageContent);
     messagesDiv.appendChild(messageElement);
     
-    // Scroll to bottom
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
-});
-
-function sendMessage() {
-    const message = messageInput.value.trim();
-    
-    if (message) {
-        socket.emit('send_message', {
-            message: message
-        });
-        messageInput.value = '';
-    }
-}
-
-// Handle Enter key
-messageInput.addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        sendMessage();
-    }
 });
 
 function appendMessage(user, message) {
@@ -327,6 +241,5 @@ function appendMessage(user, message) {
     messageElement.appendChild(messageContent);
     messagesDiv.appendChild(messageElement);
     
-    // Scroll to bottom
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }

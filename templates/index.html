@@ -31,10 +31,21 @@
                         </div>
                     </div>
                     <div class="video-controls">
-                        <button id="startVideo" class="control-button">Start Video</button>
-                        <button id="toggleAudio" class="control-button">Mute</button>
-                        <button id="toggleVideo" class="control-button">Hide Video</button>
-                        <button id="endCall" class="control-button end-call">End Call</button>
+                        <button id="startVideo" class="control-button">Call</button>
+                        <button id="toggleAudio" class="control-button" disabled>Mute</button>
+                        <button id="toggleVideo" class="control-button" disabled>Hide Video</button>
+                        <button id="endCall" class="control-button end-call" disabled>End Call</button>
+                    </div>
+                    <!-- Call notification modal -->
+                    <div id="callModal" class="modal">
+                        <div class="modal-content">
+                            <h2>Incoming Call</h2>
+                            <p id="callModalText">Someone is calling you...</p>
+                            <div class="modal-buttons">
+                                <button id="acceptCall" class="control-button">Accept</button>
+                                <button id="rejectCall" class="control-button end-call">Decline</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
