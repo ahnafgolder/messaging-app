@@ -72,5 +72,12 @@ def handle_answer(data):
 def handle_ice_candidate(data):
     emit('ice_candidate', data, broadcast=True, include_self=False)
 
+@socketio.on('call_ended')
+def handle_call_ended():
+    """Handle call ended event"""
+    room = session.get('room')
+    if room:
+        emit('call_ended', room=room, skip_sid=request.sid)
+
 if __name__ == '__main__':
     socketio.run(app, debug=True)

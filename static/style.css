@@ -267,23 +267,35 @@ body {
     /* Reorder and resize videos for mobile */
     .video-wrapper[data-user="remote"] {
         order: 1;
-        padding-top: 45%; /* Smaller aspect ratio for videos */
+        padding-top: 65%; /* Larger aspect ratio for remote video */
     }
 
     .video-wrapper[data-user="local"] {
         order: 2;
-        padding-top: 35%; /* Even smaller for local video */
+        padding-top: 45%; /* Larger for local video */
     }
 
     .video-controls {
         order: 3;
         gap: 8px;
-        padding: 5px 0;
+        padding: 8px 0;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
     }
 
     .control-button {
-        padding: 10px 15px;
+        padding: 12px 20px;
         font-size: 0.95rem;
+        min-width: 100px;
+    }
+
+    .control-button.end-call {
+        background-color: var(--error-color);
+    }
+
+    .control-button.end-call:hover {
+        background-color: #b52b37;
     }
 
     /* Larger chat section */

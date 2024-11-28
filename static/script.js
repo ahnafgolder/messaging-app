@@ -35,6 +35,7 @@ const remoteVideo = document.getElementById('remoteVideo');
 const startVideoButton = document.getElementById('startVideo');
 const toggleAudioButton = document.getElementById('toggleAudio');
 const toggleVideoButton = document.getElementById('toggleVideo');
+const endCallButton = document.getElementById('endCall');
 
 // Disable control buttons initially
 toggleAudioButton.disabled = true;
@@ -214,6 +215,57 @@ toggleVideoButton.addEventListener('click', () => {
     }
 });
 
+// End Call functionality
+document.getElementById('endCall').addEventListener('click', async () => {
+    try {
+        // Close peer connection
+        if (peerConnection) {
+            peerConnection.close();
+            peerConnection = null;
+        }
+
+        // Stop all tracks in local stream
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = null;
+        }
+
+        // Clear video elements
+        document.getElementById('localVideo').srcObject = null;
+        document.getElementById('remoteVideo').srcObject = null;
+
+        // Reset UI
+        document.getElementById('startVideo').textContent = 'Start Video';
+        document.getElementById('toggleAudio').textContent = 'Mute';
+        document.getElementById('toggleVideo').textContent = 'Hide Video';
+
+        // Notify other user
+        socket.emit('call_ended');
+
+        // Add status message
+        appendMessage('System', 'Call ended');
+    } catch (error) {
+        console.error('Error ending call:', error);
+        appendMessage('System', 'Error ending call');
+    }
+});
+
+// Handle call ended event from other user
+socket.on('call_ended', () => {
+    if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+    }
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+    }
+    document.getElementById('localVideo').srcObject = null;
+    document.getElementById('remoteVideo').srcObject = null;
+    document.getElementById('startVideo').textContent = 'Start Video';
+    appendMessage('System', 'Other user ended the call');
+});
+
 // Handle user disconnection
 window.addEventListener('beforeunload', () => {
     if (localStream) {
@@ -263,3 +315,18 @@ messageInput.addEventListener('keypress', function(e) {
         sendMessage();
     }
 });
+
+function appendMessage(user, message) {
+    const messageElement = document.createElement('div');
+    messageElement.className = 'message system';
+    
+    const messageContent = document.createElement('div');
+    messageContent.className = 'message-content';
+    messageContent.textContent = `${user}: ${message}`;
+    
+    messageElement.appendChild(messageContent);
+    messagesDiv.appendChild(messageElement);
+    
+    // Scroll to bottom
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
