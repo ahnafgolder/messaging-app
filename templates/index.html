@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Private Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chat App</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 </head>
@@ -11,22 +11,23 @@
     <div class="container">
         <div class="chat-container">
             <div class="chat-header">
-                <h1>Private Chat</h1>
                 <div class="user-info">
-                    <span>Logged in as: {{ username }}</span>
-                    <a href="{{ url_for('logout') }}" class="logout-button">Logout</a>
+                    <span>User: {{ username }}</span>
+                    <span id="user-count">1/2</span>
                 </div>
+                <a href="{{ url_for('logout') }}" class="logout-button">Logout</a>
             </div>
+            
             <div class="main-content">
                 <div class="video-container">
                     <div class="video-grid">
-                        <div class="video-wrapper">
-                            <video id="localVideo" autoplay playsinline muted></video>
-                            <div class="video-label">You</div>
-                        </div>
-                        <div class="video-wrapper">
+                        <div class="video-wrapper" data-user="remote">
                             <video id="remoteVideo" autoplay playsinline></video>
                             <div class="video-label">Remote User</div>
+                        </div>
+                        <div class="video-wrapper" data-user="local">
+                            <video id="localVideo" autoplay muted playsinline></video>
+                            <div class="video-label">You</div>
                         </div>
                     </div>
                     <div class="video-controls">
@@ -35,11 +36,12 @@
                         <button id="toggleVideo" class="control-button">Hide Video</button>
                     </div>
                 </div>
+                
                 <div class="chat-section">
-                    <div class="messages" id="messages"></div>
+                    <div id="messages" class="messages"></div>
                     <div class="input-area">
                         <div class="message-input-container">
-                            <input type="text" id="message" placeholder="Type your message..." class="message-input">
+                            <input type="text" id="message" class="message-input" placeholder="Type a message...">
                             <button onclick="sendMessage()" class="send-button">Send</button>
                         </div>
                     </div>

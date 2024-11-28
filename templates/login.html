@@ -2,24 +2,33 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Private Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Login - Chat App</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <div class="container">
         <div class="login-container">
-            <h1>Private Chat</h1>
-            <div class="login-status">
+            <h1>Welcome to Chat</h1>
+            <div class="login-card">
                 {% if error %}
-                    <p class="error">{{ error }}</p>
+                <div class="error-message">{{ error }}</div>
                 {% endif %}
-                <p>Connected Users: <span id="user-count">{{ users|length }}/2</span></p>
+                <form method="POST" action="{{ url_for('login') }}" class="login-form">
+                    <div class="form-group">
+                        <input type="text" 
+                               name="username" 
+                               class="login-input" 
+                               placeholder="Enter your username"
+                               required
+                               autocomplete="off">
+                    </div>
+                    <button type="submit" class="login-button">Join Chat</button>
+                </form>
+                <div class="login-status">
+                    Current Users: <span id="user-count">{{ users|length }}/2</span>
+                </div>
             </div>
-            <form action="{{ url_for('login') }}" method="post" class="login-form">
-                <input type="text" name="username" placeholder="Enter your username" required class="username-input">
-                <button type="submit" class="login-button">Join Chat</button>
-            </form>
         </div>
     </div>
 </body>

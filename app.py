@@ -1,88 +1,76 @@
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
-from flask_socketio import SocketIO, emit, join_room, leave_room
+from flask import Flask, render_template, request, redirect, url_for, session
+from flask_socketio import SocketIO, emit
 from datetime import datetime
-import json
+import secrets
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key'
-socketio = SocketIO(app, cors_allowed_origins="*")
+app.config['SECRET_KEY'] = secrets.token_hex(16)
+socketio = SocketIO(app, cors_allowed_origins="*", ping_timeout=60)
 
-# Store user sessions and rooms
+# Store connected users and their session IDs
 users = {}
-messages = []
-MAX_USERS = 2
+connected_users = set()
 
 @app.route('/')
 def index():
-    if 'username' in session:
-        return render_template('index.html', username=session['username'])
-    return render_template('login.html', users=users)
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('index.html', username=session['username'])
 
-@app.route('/login', methods=['POST'])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
-    username = request.form.get('username')
-    if username:
-        if len(users) >= MAX_USERS and username not in users:
-            return "Chat room is full!", 403
-        session['username'] = username
-        users[username] = True
-        return redirect(url_for('index'))
-    return redirect(url_for('index'))
+    if request.method == 'POST':
+        username = request.form['username']
+        if username and len(connected_users) < 2 and username not in connected_users:
+            session['username'] = username
+            connected_users.add(username)
+            return redirect(url_for('index'))
+        return render_template('login.html', error="Room is full or username is taken")
+    return render_template('login.html')
 
 @app.route('/logout')
 def logout():
     if 'username' in session:
-        username = session['username']
-        users.pop(username, None)
+        connected_users.discard(session['username'])
         session.pop('username', None)
-    return redirect(url_for('index'))
+    return redirect(url_for('login'))
 
 @socketio.on('connect')
 def handle_connect():
     if 'username' in session:
-        username = session['username']
-        users[username] = request.sid
-        emit('user_update', {'count': len(users)}, broadcast=True)
+        users[request.sid] = session['username']
+        emit('user_update', {'count': len(connected_users)}, broadcast=True)
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    if 'username' in session:
-        username = session['username']
-        users.pop(username, None)
-        emit('user_update', {'count': len(users)}, broadcast=True)
+    if request.sid in users:
+        username = users[request.sid]
+        connected_users.discard(username)
+        users.pop(request.sid)
+        emit('user_update', {'count': len(connected_users)}, broadcast=True)
 
 @socketio.on('send_message')
 def handle_message(data):
-    if 'username' in session and len(users) == MAX_USERS:
-        message = {
+    if 'username' in session:
+        timestamp = datetime.now().strftime('%I:%M %p')
+        emit('receive_message', {
             'user': session['username'],
             'content': data['message'],
-            'timestamp': datetime.now().strftime('%H:%M')
-        }
-        messages.append(message)
-        emit('receive_message', message, broadcast=True)
+            'timestamp': timestamp
+        }, broadcast=True)
 
-# WebRTC signaling
+# WebRTC Signaling
 @socketio.on('offer')
 def handle_offer(data):
-    if len(users) == MAX_USERS:
-        other_users = [sid for user, sid in users.items() if user != session['username']]
-        if other_users:
-            emit('offer', data, room=other_users[0])
+    emit('offer', data, broadcast=True, include_self=False)
 
 @socketio.on('answer')
 def handle_answer(data):
-    if len(users) == MAX_USERS:
-        other_users = [sid for user, sid in users.items() if user != session['username']]
-        if other_users:
-            emit('answer', data, room=other_users[0])
+    emit('answer', data, broadcast=True, include_self=False)
 
 @socketio.on('ice_candidate')
 def handle_ice_candidate(data):
-    if len(users) == MAX_USERS:
-        other_users = [sid for user, sid in users.items() if user != session['username']]
-        if other_users:
-            emit('ice_candidate', data, room=other_users[0])
+    emit('ice_candidate', data, broadcast=True, include_self=False)
 
 if __name__ == '__main__':
     socketio.run(app, debug=True)
